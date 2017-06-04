@@ -3,8 +3,8 @@
   Copyright (C) 2017 Patrick Bihn <pbihn at uni minus bremen dot de>
 
   You can find the full repo here:
-  https://github.com/tsaG1337/mEICAS
-
+  https://github.com/tsaG1337/mEFIS
+  
   This program is free software: you can redistribute it and/or modify
   it under the terms of the version 3 GNU General Public License as
   published by the Free Software Foundation.
@@ -68,6 +68,7 @@ SoftwareSerial GPSSerial(A5, NCPin); // RX, TX. Only RX is connected to the GPS 
 TinyGPSPlus gps;          //onboard GPS
 
 
+
 //********** Defining Pins **********//
 #define A6 8ul
 #define boardTempPin A1           //Pin to measure the Board Temperature
@@ -88,7 +89,12 @@ uint8_t fanLevel  = 0;            //level/speed of the cooling Fan
 uint32_t loop1PreMill = 0;        //Last time Loop1 was updated
 uint32_t loop2PreMill = 0;        //Last time Loop2 was updated
 uint8_t batteryChargingStatus = 0;//Battery Charging Status (HIGH = Charging, LOW = Not charging)
-
+uint32_t tach1Start = 0;
+uint32_t tach2start = 0;
+uint8_t rounds1 = 0;
+uint8_t rounds2 = 0;
+uint16_t freq1 = 0;
+uint16_t freq2 = 0;
 
 
 
@@ -176,10 +182,34 @@ void loop() {
 }
 
 //********** Reading Tachometer inputs **********//
-void Tacho1ISR() {
+void Tacho1ISR() {  //Measure time between 10 impulses
+  if (tach1Start ==0){
+    tach1Start = millis();
+    rounds1++;
+  } else if (rounds < 10){
+    rounds1++;
+  }
+  
+  if (rounds == 10){
+    freq1 = (millis() - tach1Start)/10;
+    tach1Start = 0;
+    rounds = 0;
+  }
 }
 
 void Tacho2ISR() {
+    if (tach2Start ==0){
+    tach2Start = millis();
+    rounds2++;
+  } else if (rounds < 10){
+    rounds2++;
+  }
+  
+  if (rounds == 10){
+    freq2 = (millis() - tach2Start)/10;
+    tach2Start = 0;
+    rounds = 0;
+  }
 }
 
 void readBatteryChargingStatus() {
