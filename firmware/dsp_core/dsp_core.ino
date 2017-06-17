@@ -4,7 +4,7 @@
 
   You can find the full repo here:
   https://github.com/tsaG1337/mEFIS
-  
+
   This program is free software: you can redistribute it and/or modify
   it under the terms of the version 3 GNU General Public License as
   published by the Free Software Foundation.
@@ -28,6 +28,7 @@
 #include "HSS.h"
 #include "movingAverage.h"
 #include <SoftwareSerial.h>
+#include "wiring_private.h" // pinPeripheral() function
 
 //********** Setup **********//
 #define DEBUG                     //uncomment to remove Debug messages on the USBSerial @115200 baud
@@ -38,10 +39,13 @@ double ID = 100000001;            //Serial Number
 #define SOFTVERSION 1             //Software Version
 
 #define GPSBaudrate 9600          //Baudrate for onboard GPS connection
-#define USBBaudrate 115200        //Baudrate for ESP8266 connection
+#define USBBaudrate 115200        //Baudrate for USB
+#define RS232Baudrate 115200      //Baudrate for RS232
 
 #define AnalogReadSampleRate 50   //Oversampling rate for analog readings
 #define AnalogOffset -150            //Analog Offset that has to be calibrated for each chip
+#define pulseSampleqt1  5
+#define pulseSampleqt2 5
 #define I2CAdress 0x22            // I2C Adress
 
 #define loop1interval 100         //Loop1 Interval
@@ -53,20 +57,21 @@ double ID = 100000001;            //Serial Number
 #ifdef DEBUG
 #define DEBUG_PRINT(x)  SerialUSB.print (x)
 #define DEBUG_PRINTLN(x)  SerialUSB.println (x)
+#define DEBUGSerial SerialUSB      //SerialUSB can be used as Debugging Port       
 #else
 #define DEBUG_PRINT(x)
 #define DEBUG_PRINTLN(x)
 #endif
-#define DEBUGSerial SerialUSB      //SerialUSB can be used as Debugging Port       
+
 
 //********** Class objects **********//
 
-HSS diffPress(15, -60, 60); //Initialize Differential Pressure Sensor with +-60mBar
-HSS absPress(16, 0, 1600); //Initialize Differential Pressure Sensor with +-60mBar
+HSS diffPress(A3, -60, 60); //Initialize Differential Pressure Sensor with +-60mBar
+HSS absPress(8, 0, 1600); //Initialize Differential Pressure Sensor with +-60mBar
 MCP3208 engineADC = MCP3208(11, 10); //Initialize the ADC for the Analog measurements (NTC and current sensor)
 SoftwareSerial GPSSerial(A5, NCPin); // RX, TX. Only RX is connected to the GPS Module
 TinyGPSPlus gps;          //onboard GPS
-
+tMovingAvgFilter frequency[2];
 
 
 //********** Defining Pins **********//
@@ -89,36 +94,45 @@ uint8_t fanLevel  = 0;            //level/speed of the cooling Fan
 uint32_t loop1PreMill = 0;        //Last time Loop1 was updated
 uint32_t loop2PreMill = 0;        //Last time Loop2 was updated
 uint8_t batteryChargingStatus = 0;//Battery Charging Status (HIGH = Charging, LOW = Not charging)
-uint32_t tach1Start = 0;
-uint32_t tach2start = 0;
-uint8_t rounds1 = 0;
-uint8_t rounds2 = 0;
+uint32_t freqCount1Start = 0;
+uint32_t freqCount2Start = 0;
+uint8_t pulses1 = 0;
+uint8_t pulses2 = 0;
+uint32_t timeduration1 = 0;
+uint32_t timeduration2 = 0;
+
 uint16_t freq1 = 0;
 uint16_t freq2 = 0;
 
 
+Uart Serial2 (&sercom1, 13, 10, SERCOM_RX_PAD_0, UART_TX_PAD_2);
+void SERCOM1_Handler()
+{
+  Serial2.IrqHandler();
+}
 
 void setup() {
 #ifdef DEBUG
-  delay(3000);
+  delay(1000);
   DEBUGSerial.begin(115200);        //USB Serial Port for Debugging Purpose
 
 #endif
   DEBUG_PRINTLN("Initizializing mEFIS Main Core");
   DEBUG_PRINTLN ("Booting up!");
-  DEBUG_PRINT ("Serial: ");           DEBUG_PRINTLN (ID);
+  DEBUG_PRINT ("Serial No.: ");           DEBUG_PRINTLN (ID);
   DEBUG_PRINT ("Hardware Version: "); DEBUG_PRINTLN (HARDVERSION);
   DEBUG_PRINT ("Software Version: "); DEBUG_PRINTLN (SOFTVERSION);
-  DEBUG_PRINTLN ("");
+  DEBUG_PRINTLN ();
 
   DEBUG_PRINTLN ("Initializing Serial Ports:");
-  DEBUG_PRINT ("GPS Port with Baudrate:"); DEBUG_PRINTLN (GPSBaudrate);
+  DEBUG_PRINT ("GPS Port with Baudrate: "); DEBUG_PRINTLN (GPSBaudrate);
   GPSSerial.begin(GPSBaudrate);          //Start Serial connection on the GPS Port
-
+  DEBUG_PRINT ("RS232 with Baudrate: "); DEBUG_PRINTLN (RS232Baudrate);
+  Serial2.begin(RS232Baudrate);          //Start Serial connection on the GPS Port
 
   DEBUG_PRINTLN ();
-  // pinPeripheral(10, PIO_SERCOM);  //Configuration for Serialport2 (RS232) TX
-  // pinPeripheral(13, PIO_SERCOM);  //Configuration for Serialport2 (RS232) RX
+  pinPeripheral(10, PIO_SERCOM);  //Configuration for Serialport2 (RS232) TX
+  pinPeripheral(13, PIO_SERCOM);  //Configuration for Serialport2 (RS232) RX
 
   DEBUG_PRINTLN ("Setting ADC resosution to 12 bit.");
   analogReadResolution(12);       // set ADC resolution to 12 bit
@@ -167,49 +181,53 @@ void loop() {
   //Loop1
   if (currentMillis - loop1PreMill >= loop1interval) {
     loop1PreMill = currentMillis;
- readBoardTemp();
+    //readBoardTemp();
 
-    engineADC.readADC();
+    //   engineADC.readADC();
   }
 
   //Loop2
   if (currentMillis - loop2PreMill >= loop2interval) {
-    loop2PreMill = currentMillis;
-    DEBUG_PRINT ("Board Temp: ");
-    DEBUG_PRINTLN (getBoardTemp());
-    
+    digitalWrite(led1Pin, !digitalRead(led1Pin));
+      loop2PreMill = currentMillis;
+    //  DEBUG_PRINT ("Board Temp: ");
+    //   DEBUG_PRINTLN (getBoardTemp());
   }
 }
 
 //********** Reading Tachometer inputs **********//
 void Tacho1ISR() {  //Measure time between 10 impulses
-  if (tach1Start ==0){
-    tach1Start = millis();
-    rounds1++;
-  } else if (rounds < 10){
-    rounds1++;
+  if (pulses1 == 0) {
+    freqCount1Start = micros();
+    pulses1++;
+  } else if (pulses1 != 0 && pulses1 < pulseSampleqt1) {
+    pulses1++;
+  } else if (pulses1 == pulseSampleqt1) {
+    uint32_t timeduration1 = micros() - freqCount1Start;
+    freq1 = 60000000 / (timeduration1 / pulseSampleqt1);
+    AddToMovingAvg(&frequency[1], freq1);
+    pulses1 = 0;
   }
-  
-  if (rounds == 10){
-    freq1 = (millis() - tach1Start)/10;
-    tach1Start = 0;
-    rounds = 0;
-  }
+}
+uint16_t getFreq1(){
+  return GetOutputValue(&frequency[1]);
 }
 
 void Tacho2ISR() {
-    if (tach2Start ==0){
-    tach2Start = millis();
-    rounds2++;
-  } else if (rounds < 10){
-    rounds2++;
+  if (pulses2 == 0) {
+    freqCount2Start = micros();
+    pulses2++;
+  } else if (pulses2 != 0 && pulses2 < pulseSampleqt2) {
+    pulses2++;
+  } else if (pulses2 == pulseSampleqt2) {
+    uint32_t timeduration2 = micros() - freqCount2Start;
+    freq2 = 60000000 / (timeduration2 / pulseSampleqt2);
+    AddToMovingAvg(&frequency[2], freq2);
+    pulses2 = 0;
   }
-  
-  if (rounds == 10){
-    freq2 = (millis() - tach2Start)/10;
-    tach2Start = 0;
-    rounds = 0;
-  }
+}
+uint16_t getFreq2(){
+  return GetOutputValue(&frequency[2]);
 }
 
 void readBatteryChargingStatus() {
@@ -229,7 +247,7 @@ void readBoardTemp() {
      Which results in: TA=(VOUT - VO) / TC
   */
   uint16_t ADCVal = analogRead(boardTempPin);
-  boardTemp = (((220 * (ADCVal+AnalogOffset)) / 273) - 400) / 19.5;
+  boardTemp = (((220 * (ADCVal + AnalogOffset)) / 273) - 400) / 19.5;
 }
 
 uint8_t getBoardTemp() {
@@ -359,6 +377,14 @@ void requestEvent()
         I2cDoubleWrite(engineADC.getMovingValue(7));
         break;
       }
+    case 29: { //Gets the moving average value of the called ADC channel (MCP3208)
+        I2cDoubleWrite(getFreq1());
+        break;
+      }
+    case 30: { //Gets the moving average value of the called ADC channel (MCP3208)
+        I2cDoubleWrite(getFreq2());
+        break;
+      }    
   }
 }
 

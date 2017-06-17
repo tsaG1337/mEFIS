@@ -1,5 +1,5 @@
-#ifndef MovingING_AVERAGE_H
-#define MovingING_AVERAGE_H
+#ifndef Moving_AVERAGE_H
+#define Moving_AVERAGE_H
 
 #include <inttypes.h>
 
