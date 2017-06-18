@@ -1,20 +1,20 @@
-
-
-
-#define SerialDebug true   // set to true to get Serial output for debugging
+#include <ESP8266WiFi.h>
 #include <SPI.h>
 #include <Wire.h>
-#include <SoftwareSerial.h>
+#include <WiFiUdp.h>
+#include <ArduinoOTA.h>
+
 #include "mpu9250.h"
 #include "tinyGPSpp.h"
-#include "HSS.h"
 //********** Configuration **********//
-#define DEBUG                       //uncomment to remove Debug messages on the USBSerial @9600 baud
+#define DEBUG                       //uncomment to remove Debug messages on the Serial @9600 baud
 
 #define WHO_AM_I 101                // Device Name
 #define ID 1000                     //Serial Number
 #define HARDVERSION 2               //Hardware Version
 #define SOFTVERSION 1               //Software Version
+
+const char *ssid = "mEFIS";         //Accesspoint SSID
 
 #define loop1interval 10         //Loop1 Interval
 #define loop2interval 100         //Loop2 Interval
@@ -37,15 +37,12 @@
 #define DEBUG_PRINT(x)
 #define DEBUG_PRINTLN(x)
 #endif
-TXLED0;
+
 
 //******** Class Objects ********//
 
-SoftwareSerial RS232Serial(RS232_RXPin, RS232_TXPin, false, 256); //initialize RS232 Serial
 TinyGPSPlus gps;                  //Initialize GPS
 MPU9250 imu;                      //initialize onboard IMU 4
-HSS diffPress(15, -60, 60); //Initialize Differential Pressure Sensor with +-60mBar
-HSS absPress(16, 0, 1600); //Initialize Differential Pressure Sensor with +-60mBar
 
 //********* Variables ***********//
 
@@ -82,14 +79,44 @@ double GPS_Altitude_Meter;
 
 void setup()
 {
-  Serial.begin(115200);
+  Serial.begin(RS232_Baudrate);
   DEBUG_PRINTLN("Initizializing mEFIS Main Core");
-  DEBUG_PRINTLN ("Booting up!");
+
   DEBUG_PRINT ("Serial: ");           DEBUG_PRINTLN (ID);
   DEBUG_PRINT ("Hardware Version: "); DEBUG_PRINTLN (HARDVERSION);
   DEBUG_PRINT ("Software Version: "); DEBUG_PRINTLN (SOFTVERSION);
   DEBUG_PRINTLN ("");
+  DEBUG_PRINTLN ("Booting up WiFi Network");
+  DEBUG_PRINT ("SSID: ");
+  DEBUG_PRINTLN (*ssid);
+  WiFi.softAP(ssid);
+  IPAddress myIP = WiFi.softAPIP();
+  DEBUG_PRINT("AP IP address: ");
+  DEBUG_PRINTLN(myIP);
+  DEBUG_PRINTLN ("Initializing OTA feature");
+  ArduinoOTA.onStart([]() {
+    DEBUG_PRINTLN("Start");
+  });
+  ArduinoOTA.onEnd([]() {
+    DEBUG_PRINTLN("\nEnd");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    DEBUG_PRINT("Progress: %u%%\r");
+    DEBUG_PRINTLN(progress / (total / 100));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    DEBUG_PRINT("Error[%u]: ");
+    DEBUG_PRINT(error);
+    if (error == OTA_AUTH_ERROR) DEBUG_PRINTLN("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) DEBUG_PRINTLN("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) DEBUG_PRINTLN("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) DEBUG_PRINTLN("Receive Failed");
+    else if (error == OTA_END_ERROR) DEBUG_PRINTLN("End Failed");
+  });
+  ArduinoOTA.begin();
 
+
+  DEBUG_PRINTLN ("");
   DEBUG_PRINTLN("Initializing Ports");
   pinMode(errorLEDPin, OUTPUT);
   DEBUG_PRINTLN ("Joining I2C Bus as master");
@@ -114,7 +141,7 @@ void setup()
 
   DEBUG_PRINTLN ("Initializing Serial Ports:");
   DEBUG_PRINT ("GPS Port with Baudrate:"); DEBUG_PRINTLN (RS232_Baudrate);
-  //RS232Serial.begin(RS232_Baudrate);          //Start Serial connection on the RS232 Port
+  Serial.begin(RS232_Baudrate);          //Start Serial connection on the RS232 Port
 
 
 }
@@ -125,14 +152,12 @@ void loop() {
   //Loop1
   if (currentMillis - loop1PreMill >= loop1interval) {
     loop1PreMill = currentMillis;
-    diffPress.readSensor();
-    absPress.readSensor();
     playTone(AudioOutPin, 500, 100);
 
     imu.readAccelData();  // Read the x/y/z adc values
 
-imu.readGyroData();
-imu.readMagData();
+    imu.readGyroData();
+    imu.readMagData();
     imu.getAres();
   }
 
@@ -141,32 +166,14 @@ imu.readMagData();
     loop2PreMill = currentMillis;
 
     //DEBUG_PRINT("Time: "); DEBUG_PRINT(gps.time.hour()); DEBUG_PRINT(":"); DEBUG_PRINT(gps.time.minute());  DEBUG_PRINT(" and "); DEBUG_PRINT(gps.time.second()); DEBUG_PRINTLN(" seconds.");
-    
-    Serial.print("X-acceleration: "); Serial.print(1000*imu.ax); Serial.print(" mg ");
-    Serial.print("Y-acceleration: "); Serial.print(1000*imu.ay); Serial.print(" mg ");
-    Serial.print("Z-acceleration: "); Serial.print(1000*imu.az); Serial.println(" mg ");
- 
-    // Print gyro values in degree/sec
-    Serial.print("X-gyro rate: "); Serial.print(imu.gx, 3); Serial.print(" degrees/sec "); 
-    Serial.print("Y-gyro rate: "); Serial.print(imu.gy, 3); Serial.print(" degrees/sec "); 
-    Serial.print("Z-gyro rate: "); Serial.print(imu.gz, 3); Serial.println(" degrees/sec"); 
-    
-    // Print mag values in degree/sec
-    Serial.print("X-mag field: "); Serial.print(imu.mx); Serial.print(" mG "); 
-    Serial.print("Y-mag field: "); Serial.print(imu.my); Serial.print(" mG "); 
-Serial.print("Z-mag field: "); Serial.print(imu.mz); Serial.println(" mG"); 
-
-
   }
-  while (RS232Serial.available() > 0) {
-    //gps.encode(RS232Serial.read());
+  while (Serial.available() > 0) {
+    gps.encode(Serial.read());
 
   }
   yield();
 }
-//===================================================================================================================
-//====== Set of useful function to access acceleration. gyroscope, magnetometer, and temperature data
-//===================================================================================================================
+
 bool scanI2CDevices(byte address, byte subAddress, byte result) {
   byte error;
 
