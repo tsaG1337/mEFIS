@@ -1,4 +1,5 @@
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <WiFiUdp.h>
@@ -20,9 +21,9 @@ const char *ssid = "mEFIS";         //Accesspoint SSID
 #define loop2interval 100         //Loop2 Interval
 
 #define MPU9250_ADDRESS 0x68
-#define MEFIS_ANALOGCORE_ADRESS 0x22
+#define DSP_CORE_ADDRESS 0x22
 
-#define RS232_Baudrate 57600        // Baudrate for external RS232 Device
+#define RS232_Baudrate 115200        // Baudrate for external RS232 Device
 
 #define errorLEDPin 0               //Diagnostic LED
 #define RS232_RXPin 2              //RS232 RX Pin
@@ -48,9 +49,14 @@ MPU9250 imu;                      //initialize onboard IMU 4
 
 bool INTERNAL_IMU = 0;
 bool INTERNAL_GPS = 0;
-bool ANALOGCORE_FOUND = 0;
-byte UNKNOW_I2C_DEVICES = 0;
+byte DSP_CORE_WHOAMI = 0;
+uint16_t DSP_CORE_SERIAL = 0;
+uint8_t HARD_VERSION = 0;
+uint8_t DSP_CORE_SOFT_VERSION = 0;
 
+byte UNKNOW_I2C_DEVICES = 0;
+byte error, address;
+int nDevices = 0;
 
 uint32_t loop1PreMill = 0;        //Last time Loop1 was updated
 uint32_t loop2PreMill = 0;        //Last time Loop2 was updated
@@ -80,6 +86,7 @@ double GPS_Altitude_Meter;
 void setup()
 {
   Serial.begin(RS232_Baudrate);
+  delay(1000);
   DEBUG_PRINTLN("Initizializing mEFIS Main Core");
 
   DEBUG_PRINT ("Serial: ");           DEBUG_PRINTLN (ID);
@@ -95,7 +102,15 @@ void setup()
   DEBUG_PRINTLN(myIP);
   DEBUG_PRINTLN ("Initializing OTA feature");
   ArduinoOTA.onStart([]() {
-    DEBUG_PRINTLN("Start");
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH)
+      type = "sketch";
+    else // U_SPIFFS
+      type = "filesystem";
+
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    DEBUG_PRINT("Start updating ");
+    DEBUG_PRINTLN(type);
   });
   ArduinoOTA.onEnd([]() {
     DEBUG_PRINTLN("\nEnd");
@@ -114,34 +129,17 @@ void setup()
     else if (error == OTA_END_ERROR) DEBUG_PRINTLN("End Failed");
   });
   ArduinoOTA.begin();
-
-
+  delay(500);
   DEBUG_PRINTLN ("");
   DEBUG_PRINTLN("Initializing Ports");
   pinMode(errorLEDPin, OUTPUT);
   DEBUG_PRINTLN ("Joining I2C Bus as master");
   Wire.begin();
   DEBUG_PRINTLN ("Scanning I2C Ports for peripherals.");
-  if (scanI2CDevices(MPU9250_ADDRESS, 0x75, 0x71)) {
-    DEBUG_PRINTLN ("MPU9250 found!");
-    INTERNAL_IMU = 1;
-  } else {
-    DEBUG_PRINTLN ("MPU9250 not found!");
-    INTERNAL_IMU = 0;
-    digitalWrite(errorLEDPin, HIGH);   // turn the LED on (HIGH is the voltage level)
-  }
-  if (scanI2CDevices(MEFIS_ANALOGCORE_ADRESS, 0x01, 0xB)) {
-    DEBUG_PRINTLN ("AnalogCore found!");
-    ANALOGCORE_FOUND = 1;
-  } else {
-    DEBUG_PRINTLN ("AnalogCore not found!");
-    ANALOGCORE_FOUND = 0;
-    digitalWrite(errorLEDPin, HIGH);   // turn the LED on (HIGH is the voltage level)
-  }
+  scanI2CDevices();
 
-  DEBUG_PRINTLN ("Initializing Serial Ports:");
-  DEBUG_PRINT ("GPS Port with Baudrate:"); DEBUG_PRINTLN (RS232_Baudrate);
-  Serial.begin(RS232_Baudrate);          //Start Serial connection on the RS232 Port
+  syncDSPCore_info();
+
 
 
 }
@@ -152,20 +150,22 @@ void loop() {
   //Loop1
   if (currentMillis - loop1PreMill >= loop1interval) {
     loop1PreMill = currentMillis;
-    playTone(AudioOutPin, 500, 100);
+    playTone(500);
 
-    imu.readAccelData();  // Read the x/y/z adc values
+    //imu.readAccelData();  // Read the x/y/z adc values
 
-    imu.readGyroData();
-    imu.readMagData();
-    imu.getAres();
+    //imu.readGyroData();
+    //imu.readMagData();
+    //imu.getAres();
+
   }
 
   //Loop2
   if (currentMillis - loop2PreMill >= loop2interval) {
     loop2PreMill = currentMillis;
-
+    Serial.println(DSP_CORE_WHOAMI, HEX);
     //DEBUG_PRINT("Time: "); DEBUG_PRINT(gps.time.hour()); DEBUG_PRINT(":"); DEBUG_PRINT(gps.time.minute());  DEBUG_PRINT(" and "); DEBUG_PRINT(gps.time.second()); DEBUG_PRINTLN(" seconds.");
+    digitalWrite(errorLEDPin, !digitalRead(errorLEDPin));
   }
   while (Serial.available() > 0) {
     gps.encode(Serial.read());
@@ -174,51 +174,62 @@ void loop() {
   yield();
 }
 
-bool scanI2CDevices(byte address, byte subAddress, byte result) {
-  byte error;
-
-  Wire.beginTransmission(address);
-  error = Wire.endTransmission();
-
-  if (error == 0)
+void scanI2CDevices() {
+  for (address = 1; address < 127; address++ )
   {
-    Serial.print("I2C device found at address 0x");
-    if (address < 16) {
-      Serial.print("0");
+    yield();
+    // The i2c_scanner uses the return value of
+    // the Write.endTransmisstion to see if
+    // a device did acknowledge to the address.
+    Wire.beginTransmission(address);
+    error = Wire.endTransmission();
+
+    if (error == 0)
+    {
+      Serial.print("I2C device found at address 0x");
+      if (address < 16)
+        Serial.print("0");
       Serial.print(address, HEX);
       Serial.println("  !");
+
+      nDevices++;
     }
-    Wire.beginTransmission(address);         // Initialize the Tx buffer
-    Wire.write(subAddress);                  // Put slave register address in Tx buffer
-    Wire.endTransmission(false);             // Send the Tx buffer, but send a restart to keep connection alive
-    delay(10);
-    Wire.requestFrom(address, (uint8_t) 1);  // Read one byte from slave register address
-    uint8_t data = Wire.read();                      // Fill Rx buffer with result
-    if (data == result) {
-      Serial.println("I2C device identified.");
-      return true;                          //return String matching!
-    } else {
-      return false;                           //return String does not match
+    else if (error == 4)
+    {
+      Serial.print("Unknown error at address 0x");
+      if (address < 16)
+        Serial.print("0");
+      Serial.println(address, HEX);
     }
   }
-  else if (error == 4)
-  {
-    Serial.print("Unknown error at address 0x");
-    if (address < 16)
-      Serial.print("0");
-    Serial.println(address, HEX);
-    return false;
-  }
+  if (nDevices == 0)
+    Serial.println("No I2C devices found");
+  else
+    Serial.println("done");
+}
+
+
+void syncDSPCore_info() {
+  
+    DSP_CORE_WHOAMI = readBytefromDSPCore(DSP_CORE_ADDRESS, 3 );
 
 }
 
-void syncAnalogCore_AnalogSensors() {
-
-}
-
-void playTone(int _pin, int _frequency, int _length) {
+void playTone(int _frequency) {
   analogWriteFreq(_frequency);
-  analogWrite(_pin, 512);
-  delay(_length);
-  analogWrite(_pin, 0);
+  analogWrite(AudioOutPin, 512);
 }
+uint8_t readBytefromDSPCore(uint8_t address, uint8_t pointer ) {
+  Wire.beginTransmission(address);
+  Wire.write(pointer); // set the Pointer
+  Wire.endTransmission();
+  delay(2); //give the DSP-Core time to arrange things.
+  int n = Wire.requestFrom(address, 1); // request one byte from Slave
+  while (n != 1) {
+    if (n == 1) {
+      // Read low byte into buffer
+      return Wire.read();
+    }
+  }
+}
+

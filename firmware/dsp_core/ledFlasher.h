@@ -19,30 +19,31 @@
 
 */
 
-#include "Arduino.h"
-class HSS
+class ledFlasher
 {
   private:
-    int8_t ChipselectPin = 0;
-    float temperature = 0;
-    int16_t pressure = 0;
-    int16_t lowPressure = 0;
-    int16_t highPressure = 0;
-    int16_t pressureDigital = 0;
-    int inByte_1 = 0;
-    int inByte_2 = 0;
-    int inByte_3 = 0;
-    int inByte_4 = 0;
-    bool enabled = 0;
-    uint8_t sampleRate = 5;
+
+    int _ledPin = 0;      // the number of the LED pin
+    int ledPattern = 2;
+
+    int state1Val = 0;
+    long _state1OnTime = 500;     // milliseconds of on-time
+    long _state1OffTime = 500;    // milliseconds of off-time
+
+    int state2Val = 0;
+    int _state2PatternState = 0;
+    long _state2OnTime = 100;     // milliseconds of on-time
+    long _state2OffTime = 200;    // milliseconds of off-time
+    int state3Val = 0;
+
+    // These maintain the current state
+    int _ledState;                 // ledState used to set the LED
+    unsigned long _previousMillis;   // will store last time LED was updated
+
   public:
-    HSS(uint8_t ChipSelect, int16_t low, int16_t high);
-    int getTemperature();
-    int16_t getPressure();
-    void readSensor();
-    void oversampleReadSensor();
-    uint8_t getSampleRate();
-    void setSampleRate(uint8_t newSampleRate);
-    void power(bool powerLevel);
+    ledFlasher(char PinNumber);
+    void pattern(int patternType);
+    void update();
 
 };
+

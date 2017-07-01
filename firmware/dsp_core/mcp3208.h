@@ -39,5 +39,7 @@ class MCP3208
     double readADC(char channel);
     double readADC();
     double getMovingValue(char channel);
+
+    
 };
 

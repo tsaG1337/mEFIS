@@ -29,12 +29,13 @@
 #include "movingAverage.h"
 #include <SoftwareSerial.h>
 #include "wiring_private.h" // pinPeripheral() function
+#include "ledFlasher.h"
 
 //********** Setup **********//
 #define DEBUG                     //uncomment to remove Debug messages on the USBSerial @115200 baud
 
 #define WHO_AM_I 0xB              // Device check ID
-double ID = 100000001;            //Serial Number
+#define ID 10001            //Serial Number
 #define HARDVERSION 122           //Hardware Version
 #define SOFTVERSION 1             //Software Version
 
@@ -63,6 +64,17 @@ double ID = 100000001;            //Serial Number
 #define DEBUG_PRINTLN(x)
 #endif
 
+//********** Defining Pins **********//
+#define A6 8ul
+#define boardTempPin A1           //Pin to measure the Board Temperature
+#define ESPReset 26     //Pin to enable the ESP
+#define inputVoltagePin A4        //Pin to measure the Input Voltage
+#define batteryVoltagePin A2       //Pin to measure the Battery Voltage
+#define batteryStatusPin 11        //Pin to read the Battery charging status
+#define tacho1Pin 2               //Tacho1 Circuit connected to this Pin
+#define tacho2Pin 5               //Tacho2 Circuit connected to this Pin
+#define led1Pin 6                //LED 1 Pin
+#define powerPin 12             //Peripheral Power
 
 //********** Class objects **********//
 
@@ -72,28 +84,18 @@ MCP3208 engineADC = MCP3208(11, 10); //Initialize the ADC for the Analog measure
 SoftwareSerial GPSSerial(A5, NCPin); // RX, TX. Only RX is connected to the GPS Module
 TinyGPSPlus gps;          //onboard GPS
 tMovingAvgFilter frequency[2];
-
-
-//********** Defining Pins **********//
-#define A6 8ul
-#define boardTempPin A1           //Pin to measure the Board Temperature
-#define ESPReset 26     //Pin to enable the ESP
-#define inputVoltagePin A4        //Pin to measure the Input Voltage
-#define batteryVoltagePin A2       //Pin to measure the Battery Voltage (ANALOG PIN!?!)
-#define batteryStatusPin 11        //Pin to read the Battery charging status
-#define tacho1Pin 2               //Tacho1 Circuit connected to this Pin
-#define tacho2Pin 5               //Tacho2 Circuit connected to this Pin
-#define led1Pin 6                //LED 1 Pin
+ledFlasher LED(led1Pin); //LED initialized
 
 
 //********** Defining Status Variables **********//
 uint8_t requestedByte = 0;        //I2C request Byte
 uint16_t boardTemp = 0;            //Board Temperature
-uint8_t powerTemp = 0;            //Temperature at the Buck-Converter
-uint8_t fanLevel  = 0;            //level/speed of the cooling Fan
 uint32_t loop1PreMill = 0;        //Last time Loop1 was updated
 uint32_t loop2PreMill = 0;        //Last time Loop2 was updated
 uint8_t batteryChargingStatus = 0;//Battery Charging Status (HIGH = Charging, LOW = Not charging)
+uint16_t batteryVoltage = 0;      //Battery input voltage
+uint16_t inputVoltage = 0;        //Input Voltage
+
 uint32_t freqCount1Start = 0;
 uint32_t freqCount2Start = 0;
 uint8_t pulses1 = 0;
@@ -144,7 +146,7 @@ void setup() {
   Wire.onRequest(requestEvent);
   //**** Configurating Pin Modes ****//
   DEBUG_PRINTLN ("Configurating Pin Modes.");
-  pinMode(led1Pin, OUTPUT);
+  pinMode(powerPin, OUTPUT);
   digitalWrite(led1Pin, HIGH);
   pinMode(boardTempPin, INPUT);
   pinMode(inputVoltagePin, INPUT);
@@ -164,14 +166,16 @@ void setup() {
   SPI.begin();
   SPI.setClockDivider(48);
 
-  DEBUG_PRINTLN ("Resetting ESP.");
+  DEBUG_PRINTLN ("Powering up Periheral devices.");
+  peripheralPower(1);
+  DEBUG_PRINTLN ("Waiting for the Main Core to boot.");
+  delay(500);
+  DEBUG_PRINTLN ("Resetting Main Core.");
   digitalWrite(ESPReset, LOW);
   delay(10);
   digitalWrite(ESPReset, HIGH);
   DEBUG_PRINTLN ("Bootup complete.");
   digitalWrite(led1Pin, LOW);
-
-
 }
 
 //********** Beginn of Loop **********//
@@ -182,17 +186,24 @@ void loop() {
   if (currentMillis - loop1PreMill >= loop1interval) {
     loop1PreMill = currentMillis;
     //readBoardTemp();
-
+    readBatteryState();
     //   engineADC.readADC();
   }
 
   //Loop2
   if (currentMillis - loop2PreMill >= loop2interval) {
-    digitalWrite(led1Pin, !digitalRead(led1Pin));
-      loop2PreMill = currentMillis;
+
+    loop2PreMill = currentMillis;
     //  DEBUG_PRINT ("Board Temp: ");
     //   DEBUG_PRINTLN (getBoardTemp());
+    // digitalWrite(led1Pin, !digitalRead(led1Pin));
+    getInputVoltage();
+    DEBUG_PRINT ("Input Voltage: ");
+    DEBUG_PRINTLN (analogRead(A1));
+
   }
+  LED.update();
+  yield();
 }
 
 //********** Reading Tachometer inputs **********//
@@ -209,7 +220,7 @@ void Tacho1ISR() {  //Measure time between 10 impulses
     pulses1 = 0;
   }
 }
-uint16_t getFreq1(){
+uint16_t getFreq1() {
   return GetOutputValue(&frequency[1]);
 }
 
@@ -226,7 +237,7 @@ void Tacho2ISR() {
     pulses2 = 0;
   }
 }
-uint16_t getFreq2(){
+uint16_t getFreq2() {
   return GetOutputValue(&frequency[2]);
 }
 
@@ -384,7 +395,7 @@ void requestEvent()
     case 30: { //Gets the moving average value of the called ADC channel (MCP3208)
         I2cDoubleWrite(getFreq2());
         break;
-      }    
+      }
   }
 }
 
@@ -394,3 +405,34 @@ void I2cInt16Write(uint16_t bigVal) {
 void I2cDoubleWrite(double bigVal) {
   Wire.write((byte *)&bigVal, sizeof(double));
 }
+void peripheralPower(bool powerLevel) {
+  if (powerLevel) {
+    digitalWrite(powerPin, powerLevel);
+    delay(500);
+    diffPress.power(1);
+    absPress.power(1);
+  } else if (!powerLevel) {
+    diffPress.power(1);
+    absPress.power(1);
+    delay(500);
+    digitalWrite(powerPin, powerLevel);
+  }
+}
+void readBatteryState() {
+  batteryChargingStatus = !digitalRead(batteryStatusPin);
+
+  uint16_t ADCVal = analogRead(batteryVoltagePin);
+  batteryVoltage = (ADCVal + AnalogOffset) * (3300 / 4095);
+  if (batteryChargingStatus) {
+    LED.pattern(2);
+  } else {
+    LED.pattern(1);
+  }
+}
+
+uint16_t getInputVoltage(){
+  uint16_t ADCVal = analogRead(A4);
+  inputVoltage = (ADCVal);
+  return inputVoltage;
+}
+
