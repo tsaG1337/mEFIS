@@ -5,6 +5,5 @@
 #else
 #define DEBUG_PRINT(x)
 #define DEBUG_PRINTLN(x)
-
-  //DEBUGSerial.begin(115200);        //USB Serial Port for Debugging Purpose
-  #endif
+#define DEBUGSerial SerialUSB      //SerialUSB can be used as Debugging Port 
+#endif
