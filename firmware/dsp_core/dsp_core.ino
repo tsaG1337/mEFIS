@@ -30,10 +30,11 @@
 //#include <SoftwareSerial.h>
 #include "wiring_private.h" // pinPeripheral() function
 #include "ledFlasher.h"
+#include "debugMessenger.h"
 
 
 //********** Setup **********//
-#define DEBUG                     //uncomment to remove Debug messages on the USBSerial @115200 baud
+#define DEBUG true                     //uncomment to remove Debug messages on the USBSerial @115200 baud
 
 #define WHO_AM_I 0xB              // Device check ID
 #define ID 10001            //Serial Number
@@ -55,14 +56,14 @@
 #define lowVoltageThreshold 8000  //Low input Voltage threshold
 #define NCPin   A0                //Pin which is not connected
 
-#ifdef DEBUG
-#define DEBUG_PRINT(x)  SerialUSB.print (x)
-#define DEBUG_PRINTLN(x)  SerialUSB.println (x)
-#define DEBUGSerial SerialUSB      //SerialUSB can be used as Debugging Port       
-#else
-#define DEBUG_PRINT(x)
-#define DEBUG_PRINTLN(x)
-#endif
+//#ifdef DEBUG true
+//#define DEBUG_PRINT(x)  SerialUSB.print (x)
+//#define DEBUG_PRINTLN(x)  SerialUSB.println (x)
+//#define DEBUGSerial SerialUSB      //SerialUSB can be used as Debugging Port       
+//#else
+//#define DEBUG_PRINT(x)
+//#define DEBUG_PRINTLN(x)
+//#endif
 //DEBUGSerial.begin(115200);        //USB Serial Port for Debugging Purpose
 
 //********** Defining Pins **********//

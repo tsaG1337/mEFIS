@@ -21,11 +21,12 @@
 #include "HSS.h"
 #include "Arduino.h"
 #include "SPI.h"
+#include "debugMessenger.h"
+#define DEBUG false
 //Define Communication Settings
 #define baudrate 500000
 #define BitFirst MSBFIRST
 #define SPIMode SPI_MODE3
-#define DEBUG 0
 
 
 
@@ -49,46 +50,39 @@ int16_t HSS::getPressure() {
 
 
 void HSS::readSensor() {
-  if (enabled) {
-    SPI.beginTransaction(SPISettings(baudrate, BitFirst, SPIMode)); // Set to 800kHz, MSB and MODE1
-    SPI.begin();
-    digitalWrite(ChipselectPin, LOW);       //pull Chipselect Pin to Low
+  SPI.beginTransaction(SPISettings(baudrate, BitFirst, SPIMode)); // Set to 800kHz, MSB and MODE1
+  SPI.begin();
+  digitalWrite(ChipselectPin, LOW);       //pull Chipselect Pin to Low
 
 
-    inByte_1 = SPI.transfer(0x00);  // Read first Byte of Pressure
-    //delayMicroseconds(10);
-    inByte_2 = SPI.transfer(0x00);  // Read second Byte of Pressure
-    //delayMicroseconds(10);
-    inByte_3 = SPI.transfer(0x00);  // Read first Byte of Temperature
-    //delayMicroseconds(10);
-    inByte_4 = SPI.transfer(0x00);  // Read second Byte of Temperature
+  inByte_1 = SPI.transfer(0x00);  // Read first Byte of Pressure
+  //delayMicroseconds(10);
+  inByte_2 = SPI.transfer(0x00);  // Read second Byte of Pressure
+  //delayMicroseconds(10);
+  inByte_3 = SPI.transfer(0x00);  // Read first Byte of Temperature
+  //delayMicroseconds(10);
+  inByte_4 = SPI.transfer(0x00);  // Read second Byte of Temperature
 
-    SPI.endTransaction();               //end SPI Transaction
-    SPI.end();
+  SPI.endTransaction();               //end SPI Transaction
+  SPI.end();
 
-    if (DEBUG) {
-      Serial.print("Chipselect = "); Serial.print(ChipselectPin, DEC); Serial.print(" ");
-      Serial.print("Byte_1 = "); Serial.print(inByte_1, DEC); Serial.print(" ");
-      Serial.print("Byte_2 = "); Serial.print(inByte_2, DEC); Serial.print(" ");
-      Serial.print("Byte_3 = "); Serial.print(inByte_3, DEC); Serial.print(" ");
-      Serial.print("Byte_4 = "); Serial.print(inByte_4, DEC); Serial.print(" ");
-    }
-    digitalWrite(ChipselectPin, HIGH);      //pull Chipselect Pin to High
-    pressureDigital = inByte_1 << 8 | inByte_2;
-
-    //pressure = pressureDigital;
-    pressure = (((float)(pressureDigital - 1638) * (highPressure - lowPressure)) / 13104) + lowPressure; //transform digital value into real pressure
-    inByte_3 = inByte_3 << 3 | inByte_4; //Shift first Temperature byte 3 left
-    temperature = ((float)inByte_3 * 200 / 2047) - 50; //Convert Digital value to °C
-    if (DEBUG) {
-      Serial.print("Temp[C]= "); Serial.print(temperature); Serial.println(" ");
-    }
-  } else if (!enabled){
-    if (DEBUG) {
-      Serial.println("Sensor disabled! Pressure Sensing not possible.");
-    }
+  if (DEBUG) {
+    DEBUG_PRINT("Chipselect = "); DEBUG_PRINTLN(ChipselectPin);
+    DEBUG_PRINT("Byte_1 = "); DEBUG_PRINTLN(inByte_1);
+    DEBUG_PRINT("Byte_2 = "); DEBUG_PRINTLN(inByte_2);
+    DEBUG_PRINT("Byte_3 = "); DEBUG_PRINTLN(inByte_3);
+    DEBUG_PRINT("Byte_4 = "); DEBUG_PRINTLN(inByte_4);
   }
+  digitalWrite(ChipselectPin, HIGH);      //pull Chipselect Pin to High
+  pressureDigital = inByte_1 << 8 | inByte_2;
 
+  //pressure = pressureDigital;
+  pressure = (((float)(pressureDigital - 1638) * (highPressure - lowPressure)) / 13104) + lowPressure; //transform digital value into real pressure
+  inByte_3 = inByte_3 << 3 | inByte_4; //Shift first Temperature byte 3 left
+  temperature = ((float)inByte_3 * 200 / 2047) - 50; //Convert Digital value to °C
+  if (DEBUG) {
+    Serial.print("Temp[C]= "); Serial.print(temperature); Serial.println(" ");
+  }
 }
 
 

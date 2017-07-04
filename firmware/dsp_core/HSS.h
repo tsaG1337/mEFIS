@@ -33,7 +33,6 @@ class HSS
     int inByte_2 = 0;
     int inByte_3 = 0;
     int inByte_4 = 0;
-    bool enabled = 0;
     uint8_t sampleRate = 5;
   public:
     HSS(uint8_t ChipSelect, int16_t low, int16_t high);
