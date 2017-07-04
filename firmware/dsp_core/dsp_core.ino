@@ -30,7 +30,7 @@
 //#include <SoftwareSerial.h>
 #include "wiring_private.h" // pinPeripheral() function
 #include "ledFlasher.h"
-#include "debugMessenger.h"
+#include "debug.h"
 
 
 //********** Setup **********//
@@ -55,16 +55,6 @@
 #define loop2interval 1000        //Loop2 Interval
 #define lowVoltageThreshold 8000  //Low input Voltage threshold
 #define NCPin   A0                //Pin which is not connected
-
-//#ifdef DEBUG true
-//#define DEBUG_PRINT(x)  SerialUSB.print (x)
-//#define DEBUG_PRINTLN(x)  SerialUSB.println (x)
-//#define DEBUGSerial SerialUSB      //SerialUSB can be used as Debugging Port       
-//#else
-//#define DEBUG_PRINT(x)
-//#define DEBUG_PRINTLN(x)
-//#endif
-//DEBUGSerial.begin(115200);        //USB Serial Port for Debugging Purpose
 
 //********** Defining Pins **********//
 #define A6 8ul
@@ -138,26 +128,25 @@ void setup() {
 #endif
   DEBUG_PRINTLN("Initizializing mEFIS Main Core");
   DEBUG_PRINTLN ("Booting up!");
-  DEBUG_PRINT ("Serial No.: ");           DEBUG_PRINTLN (ID);
-  DEBUG_PRINT ("Hardware Version: "); DEBUG_PRINTLN (HARDVERSION);
-  DEBUG_PRINT ("Software Version: "); DEBUG_PRINTLN (SOFTVERSION);
+  DEBUG_PRINTLN ("Serial No.: "       + ID);
+  DEBUG_PRINTLN ("Hardware Version: " + HARDVERSION);
+  DEBUG_PRINTLN ("Software Version: " + SOFTVERSION);
   DEBUG_PRINTLN ();
 
   DEBUG_PRINTLN ("Initializing Serial Ports:");
-  DEBUG_PRINT ("GPS Port with Baudrate: "); DEBUG_PRINTLN (GPSBaudrate);
-  //  GPSSerial.begin(GPSBaudrate);          //Start Serial connection on the GPS Port
-  DEBUG_PRINT ("RS232 with Baudrate: "); DEBUG_PRINTLN (RS232Baudrate);
-  Serial2.begin(RS232Baudrate);          //Start Serial connection on the GPS Port
-
-  DEBUG_PRINTLN ();
+  //DEBUG_PRINT ("GPS Port with Baudrate: "+ GPSBaudrate);
+  //GPSSerial.begin(GPSBaudrate);          //Start Serial connection on the GPS Port
+  
+  DEBUG_PRINTLN ("RS232 with Baudrate: "  + RS232Baudrate);
   pinPeripheral(10, PIO_SERCOM);  //Configuration for Serialport2 (RS232) TX
   pinPeripheral(13, PIO_SERCOM);  //Configuration for Serialport2 (RS232) RX
-
+  Serial2.begin(RS232Baudrate);          //Start Serial connection on the GPS Port
+  DEBUG_PRINTLN ();
+  
   DEBUG_PRINTLN ("Setting ADC resosution to 12 bit.");
   analogReadResolution(12);       // set ADC resolution to 12 bit
 
-  DEBUG_PRINT ("Joining the I2C Bus with Adress: ");
-  DEBUG_PRINTLN (I2CAdress);
+  DEBUG_PRINTLN ("Joining the I2C Bus with Adress: "  + I2CAdress);
   Wire.begin(I2CAdress);          //joining the I2C Bus
   Wire.onReceive(receiveEvent); // register event
   Wire.onRequest(requestEvent);
@@ -183,9 +172,9 @@ void setup() {
   //attachInterrupt(enLinePin, wakeUp, LOW);       //Test Interrupt for waking
   //**** Configurating Hardware ****//
   DEBUG_PRINTLN ("Set up SPI to 2MHz.");
-  SPI.begin();
+  //SPI.begin();
   SPI.setClockDivider(48);
-  DEBUG_PRINT ("External Enable Line: ");
+  DEBUG_PRINTLN ("External Enable Line: ");
   readEnLine();
   if (getEnLine()) {
     DEBUG_PRINTLN ("Activated!");
@@ -232,19 +221,13 @@ void loop() {
     loop2PreMill = currentMillis;
     peripheralPower(getEnLine());
 
-    DEBUG_PRINT ("Input Voltage: ");
-    DEBUG_PRINT (getInputVoltage() / 1000.0);
-    DEBUG_PRINTLN (" V");
+    DEBUG_PRINTLN ("Input Voltage: "+ getInputVoltage() / 1000.0 + " V");
 
-    DEBUG_PRINT ("Battery Voltage: ");
-    DEBUG_PRINT (getBatteryVoltage() / 1000.0);
-    DEBUG_PRINTLN (" V");
+    DEBUG_PRINTLN ("Battery Voltage: "+ getBatteryVoltage() / 1000.0+ " V");
 
-    DEBUG_PRINT ("Low EN_line: ");
-    DEBUG_PRINTLN (getEnLine());
+    DEBUG_PRINTLN ("Low EN_line: "+ getEnLine());
 
-    DEBUG_PRINT ("Power Mode: ");
-    DEBUG_PRINTLN (getPowerLevel());
+    DEBUG_PRINTLN ("Power Mode: "+ getPowerLevel());
 
     DEBUG_PRINTLN ();
   }

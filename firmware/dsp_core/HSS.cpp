@@ -21,7 +21,7 @@
 #include "HSS.h"
 #include "Arduino.h"
 #include "SPI.h"
-#include "debugMessenger.h"
+#include "debug.h"
 #define DEBUG false
 //Define Communication Settings
 #define baudrate 500000
@@ -67,11 +67,11 @@ void HSS::readSensor() {
   SPI.end();
 
   if (DEBUG) {
-    DEBUG_PRINT("Chipselect = "); DEBUG_PRINTLN(ChipselectPin);
-    DEBUG_PRINT("Byte_1 = "); DEBUG_PRINTLN(inByte_1);
-    DEBUG_PRINT("Byte_2 = "); DEBUG_PRINTLN(inByte_2);
-    DEBUG_PRINT("Byte_3 = "); DEBUG_PRINTLN(inByte_3);
-    DEBUG_PRINT("Byte_4 = "); DEBUG_PRINTLN(inByte_4);
+    DEBUG_PRINT("Chipselect = " + ChipselectPin);
+    DEBUG_PRINTLN("Byte_1 = "   + inByte_1);
+    DEBUG_PRINT("Byte_2 = "     + inByte_2);
+    DEBUG_PRINT("Byte_3 = "     + inByte_3);
+    DEBUG_PRINT("Byte_4 = "     + inByte_4);
   }
   digitalWrite(ChipselectPin, HIGH);      //pull Chipselect Pin to High
   pressureDigital = inByte_1 << 8 | inByte_2;
