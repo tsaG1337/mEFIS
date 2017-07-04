@@ -34,7 +34,7 @@ void ledFlasher::update() {
   // check to see if it's time to change the state of the LED
   unsigned long currentMillis = millis();
   switch (ledPattern) {
-    case 1:
+    case 0:
       if ((_ledState == HIGH) && (currentMillis - _previousMillis >= _state1OnTime))
       {
         _ledState = LOW;  // Turn it off
@@ -49,7 +49,7 @@ void ledFlasher::update() {
       }
       break;
 
-    case 2:
+    case 1:
       if (_state2PatternState <= 3) {
         if (((_state2PatternState == 0) || (_state2PatternState == 2)) && (currentMillis - _previousMillis >= _state2OnTime))
         {
@@ -75,8 +75,12 @@ void ledFlasher::update() {
         _state2PatternState = 0;
       }
       break;
-  }
 
+    case 2: {
+        digitalWrite(_ledPin, LOW);
+      }
+      break;
+  }
 }
 
 
