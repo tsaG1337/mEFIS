@@ -37,16 +37,6 @@ HSS::HSS(uint8_t ChipSelect, int16_t low, int16_t high) {
 
 }
 
-void HSS::power(bool powerLevel) {
-  if (powerLevel){
-    pinMode(ChipselectPin, OUTPUT);
-    digitalWrite(ChipselectPin, powerLevel);
-  } else if (!powerLevel){
-    digitalWrite(ChipselectPin, powerLevel);
-    pinMode(ChipselectPin, INPUT);
-  }
-  enabled = powerLevel;
-}
 
 int HSS::getTemperature() {
   return temperature;

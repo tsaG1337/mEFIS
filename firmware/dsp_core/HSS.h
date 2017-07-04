@@ -43,6 +43,5 @@ class HSS
     void oversampleReadSensor();
     uint8_t getSampleRate();
     void setSampleRate(uint8_t newSampleRate);
-    void power(bool powerLevel);
 
 };
