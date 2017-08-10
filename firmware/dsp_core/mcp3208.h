@@ -36,9 +36,9 @@ class MCP3208
 
   public:
     MCP3208(char Pin, char oversamplingRate);
-    double readADC(char channel);
-    double readADC();
-    double getMovingValue(char channel);
+    void readADC(char channel);
+    void readADC();
+    uint16_t getMovingValue(char channel);
 
     
 };

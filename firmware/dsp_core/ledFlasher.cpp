@@ -51,7 +51,7 @@ void ledFlasher::update() {
 
     case 1:
       if (_state2PatternState <= 3) {
-        if (((_state2PatternState == 0) || (_state2PatternState == 2)) && (currentMillis - _previousMillis >= _state2OnTime))
+        if (((_state2PatternState == 0) || (_state2PatternState == 2)) && (currentMillis - _previousMillis >= _state2OffTime))
         {
           _ledState = HIGH;  // Turn it off
           _previousMillis = currentMillis;  // Remember the time
@@ -59,7 +59,7 @@ void ledFlasher::update() {
           _state2PatternState++;
 
         }
-        else if (((_state2PatternState == 1) || (_state2PatternState == 3)) && (currentMillis - _previousMillis >= _state2OffTime))
+        else if (((_state2PatternState == 1) || (_state2PatternState == 3)) && (currentMillis - _previousMillis >= _state2OnTime))
         {
           _ledState = LOW;  // turn it on
           _previousMillis = currentMillis;   // Remember the time
@@ -67,7 +67,7 @@ void ledFlasher::update() {
           _state2PatternState++;
         }
       }
-      else if ((_state2PatternState == 4) && (currentMillis - _previousMillis >= (2 * _state1OnTime)))
+      else if ((_state2PatternState == 4) && (currentMillis - _previousMillis >= (_state2DelayTime)))
       {
         _ledState = LOW;  // turn it on
         _previousMillis = currentMillis;   // Remember the time

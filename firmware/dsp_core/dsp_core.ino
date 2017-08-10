@@ -30,11 +30,13 @@
 //#include <SoftwareSerial.h>
 #include "wiring_private.h" // pinPeripheral() function
 #include "ledFlasher.h"
+
+#define DEBUG_OUTPUT
+#define DEBUG "MainThread"
 #include "debug.h"
 
 
 //********** Setup **********//
-#define DEBUG true                     //uncomment to remove Debug messages on the USBSerial @115200 baud
 
 #define WHO_AM_I 0xB              // Device check ID
 #define ID 10001            //Serial Number
@@ -74,7 +76,7 @@
 RTCZero rtc;
 HSS diffPress(A3, -60, 60);           //Initialize Differential Pressure Sensor with +-60mBar
 HSS absPress(8, 0, 1600);             //Initialize Differential Pressure Sensor with +-60mBar
-MCP3208 engineADC = MCP3208(11, 10);  //Initialize the ADC for the Analog measurements (NTC and current sensor)
+MCP3208 engineADC = MCP3208(3, 10);  //Initialize the ADC for the Analog measurements (NTC and current sensor)
 //SoftwareSerial GPSSerial(A5, NCPin);// RX, TX. Only RX is connected to the GPS Module
 TinyGPSPlus gps;                      //onboard GPS
 ledFlasher LED(led1Pin);              //LED blinking pattern initialized
@@ -88,7 +90,6 @@ tMovingAvgFilter internalADC[3];      //Moving Average Filter for Internal ADC
    1 = Board Temp             (in °Celsius)
    2 = Battery Input Voltage  (MilliVolts)
    3 = Power Input Voltage    (MilliVolts)
-
 */
 
 
@@ -126,33 +127,32 @@ void setup() {
 #ifdef DEBUG
   DEBUGSerial.begin(115200);
 #endif
-  DEBUG_PRINTLN("Initizializing mEFIS Main Core");
-  DEBUG_PRINTLN ("Booting up!");
-  DEBUG_PRINTLN ("Serial No.: "       + ID);
-  DEBUG_PRINTLN ("Hardware Version: " + HARDVERSION);
-  DEBUG_PRINTLN ("Software Version: " + SOFTVERSION);
-  DEBUG_PRINTLN ();
+delay(2000);
+  LOG("Initizializing mEFIS DSP Core");
+  LOG("Booting up!");
+  LOG ("Serial No.: ",ID);
+  LOG ("Hardware Version: ",HARDVERSION);
+  LOG ("Software Version: ",SOFTVERSION);
 
-  DEBUG_PRINTLN ("Initializing Serial Ports:");
-  //DEBUG_PRINT ("GPS Port with Baudrate: "+ GPSBaudrate);
-  //GPSSerial.begin(GPSBaudrate);          //Start Serial connection on the GPS Port
+  LOG ("Initializing Serial Ports:");
+  //DEBUG_PRINT ("GPS Port with Baudrate: "); DEBUG_PRINTLN (GPSBaudrate);
+  //  GPSSerial.begin(GPSBaudrate);          //Start Serial connection on the GPS Port
+  LOG ("RS232 with Baudrate: ",RS232Baudrate);
+  Serial2.begin(RS232Baudrate);          //Start Serial connection on the GPS Port
   
-  DEBUG_PRINTLN ("RS232 with Baudrate: "  + RS232Baudrate);
   pinPeripheral(10, PIO_SERCOM);  //Configuration for Serialport2 (RS232) TX
   pinPeripheral(13, PIO_SERCOM);  //Configuration for Serialport2 (RS232) RX
-  Serial2.begin(RS232Baudrate);          //Start Serial connection on the GPS Port
-  DEBUG_PRINTLN ();
-  
-  DEBUG_PRINTLN ("Setting ADC resosution to 12 bit.");
+
+  LOG ("Setting ADC resolution to 12 bit.");
   analogReadResolution(12);       // set ADC resolution to 12 bit
 
-  DEBUG_PRINTLN ("Joining the I2C Bus with Adress: "  + I2CAdress);
+  LOG ("Joining the I2C Bus with Adress: ",I2CAdress);
   Wire.begin(I2CAdress);          //joining the I2C Bus
   Wire.onReceive(receiveEvent); // register event
   Wire.onRequest(requestEvent);
 
   //**** Configurating Pin Modes ****//
-  DEBUG_PRINTLN ("Configurating Pin Modes.");
+  LOG ("Configurating Pin Modes.");
   pinMode(led1Pin,            OUTPUT);
   pinMode(powerPin,           OUTPUT);
   pinMode(ESPReset,           OUTPUT);
@@ -166,34 +166,34 @@ void setup() {
   digitalWrite(led1Pin,       HIGH);
 
   //**** Configurating Interrups ****//
-  DEBUG_PRINTLN ("Configurating Interrupts.");
+  LOG ("Configurating Interrupts.");
   attachInterrupt(tacho1Pin, Tacho1ISR, RISING); //Interupt for Tacho1
   attachInterrupt(tacho2Pin, Tacho2ISR, RISING); //Interupt for Tacho2
   //attachInterrupt(enLinePin, wakeUp, LOW);       //Test Interrupt for waking
   //**** Configurating Hardware ****//
-  DEBUG_PRINTLN ("Set up SPI to 2MHz.");
-  //SPI.begin();
+  LOG ("Set up SPI to 2MHz.");
+  SPI.begin();
   SPI.setClockDivider(48);
-  DEBUG_PRINTLN ("External Enable Line: ");
+  LOG ("External Enable Line: ");
   readEnLine();
   if (getEnLine()) {
-    DEBUG_PRINTLN ("Activated!");
-    DEBUG_PRINTLN ("Powering up Periheral devices.");
+    LOG ("Activated!");
+    LOG ("Powering up Peripheral devices.");
     peripheralPower(1);
-    DEBUG_PRINTLN ("Waiting for the Main Core to boot.");
+    LOG ("Waiting for the Main Core to boot.");
     delay(500);
-    DEBUG_PRINTLN ("Resetting Main Core.");
+    LOG ("Resetting Main Core.");
     digitalWrite(ESPReset, LOW);
     delay(10);
     digitalWrite(ESPReset, HIGH);
   } else {
-    DEBUG_PRINTLN ("Disabled!");
-    DEBUG_PRINTLN ("Booting in low Power mode");
+    LOG ("Disabled!");
+    LOG ("Booting in low Power mode");
     peripheralPower(0);
   }
-  DEBUG_PRINTLN ("Initializing Sleep Mode");
+  LOG ("Initializing Sleep Mode");
   rtc.begin();
-  DEBUG_PRINTLN ("Bootup complete.");
+  LOG ("Bootup complete.");
   digitalWrite(led1Pin, LOW);
 
 }
@@ -206,9 +206,16 @@ void loop() {
   if (currentMillis - loop1PreMill >= loop1interval) {
     loop1PreMill = currentMillis;
     if (getPowerLevel()) {   //only if Board is fully powered (otherwise sensors are off and there is nothing to read)
+
+      diffPress.readSensor();
+      absPress.readSensor();
+      
       readBoardTemp();
-      engineADC.readADC();
+      
+      engineADC.readADC(7);
+     
       readBatteryChargingStatus();
+      
     }
 
     readInputVoltage();
@@ -220,21 +227,30 @@ void loop() {
   if (currentMillis - loop2PreMill >= loop2interval) {
     loop2PreMill = currentMillis;
     peripheralPower(getEnLine());
+    
+    LOG ("Input Voltage: ",(getInputVoltage() / 1000.0));
+    //
+    LOG ("Battery Voltage: ", getBatteryVoltage() / 1000.0);
+   
+    //
+    LOG ("INPUT 8", engineADC.getMovingValue(0));
+    SerialUSB.println(engineADC.getMovingValue(0));
+    LOG ("INPUT 7", engineADC.getMovingValue(1));
+    LOG ("INPUT 6", engineADC.getMovingValue(2));
+    LOG ("INPUT 5", engineADC.getMovingValue(3));
+    LOG ("INPUT 4", engineADC.getMovingValue(4));
+    LOG ("INPUT 3", engineADC.getMovingValue(5));
+    LOG ("INPUT 2", engineADC.getMovingValue(6));
+    LOG ("INPUT 1", engineADC.getMovingValue(7));
+    SerialUSB.print("Hallo:");
+    SerialUSB.println(engineADC.getMovingValue(7));
+    //
+    LOG ("Board Temperatur: ", getBoardTemp());
 
-    DEBUG_PRINTLN ("Input Voltage: "+ getInputVoltage() / 1000.0 + " V");
-
-    DEBUG_PRINTLN ("Battery Voltage: "+ getBatteryVoltage() / 1000.0+ " V");
-
-    DEBUG_PRINTLN ("Low EN_line: "+ getEnLine());
-
-    DEBUG_PRINTLN ("Power Mode: "+ getPowerLevel());
-
-    DEBUG_PRINTLN ();
+   
   }
   LED.update();
   //__WFI();
-
-  yield();
 }
 
 //********** Reading Tachometer inputs **********//
@@ -492,7 +508,7 @@ void peripheralPower(bool power) {
       InitMovingAvg(&frequency[2], 0); //set Frequency2 to 0
       batteryChargingStatus = 0;       //set Battery charging Status to 0 (otherwise it would be floating and recognized as charging)
       digitalWrite(powerPin, power);
-      DEBUG_PRINTLN("Now going to sleep");
+      
       //rtc.standbyMode();
 
     }

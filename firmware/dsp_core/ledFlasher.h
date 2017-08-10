@@ -32,8 +32,9 @@ class ledFlasher
 
     int state2Val = 0;
     int _state2PatternState = 0;
-    long _state2OnTime = 100;     // milliseconds of on-time
-    long _state2OffTime = 200;    // milliseconds of off-time
+    long _state2OnTime = 100;       // milliseconds of on-time
+    long _state2OffTime = 100;      // milliseconds of off-time
+    long _state2DelayTime = 2000;  // milliseconds delay between blinking pattern
     int state3Val = 0;
 
     // These maintain the current state
