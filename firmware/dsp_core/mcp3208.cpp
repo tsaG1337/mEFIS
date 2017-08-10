@@ -21,61 +21,74 @@
 
 #include "mcp3208.h"
 #include "movingAverage.h"
+//#define DEBUG "MCP3208"
+#include "debug.h"
 
-MCP3208::MCP3208(char Pin, char oversamplingRate){
-    _csPin = Pin;
-  pinMode(_csPin,OUTPUT);     //configure CS Pin as Output
-  digitalWrite(_csPin,HIGH);  //set CS Pin high
+//Define Communication Settings
+#define baudrate 500000
+#define BitFirst MSBFIRST
+#define SPIMode SPI_MODE3
+
+uint16_t value[8] = {0,0,0,0,0,0,0,0}; 
+MCP3208::MCP3208(char Pin, char oversamplingRate) {
+  _csPin = Pin;
+  pinMode(_csPin, OUTPUT);    //configure CS Pin as Output
+  digitalWrite(_csPin, HIGH); //set CS Pin high
   _oversamplingRate = oversamplingRate;
-  for (int i=0; i<8; i++){
-    InitMovingAvg(&filteredChannel[i], 0); //ini6
+  for (int i = 0; i < 8; i++) {
+    InitMovingAvg(&filteredChannel[i], 0); //init Filter
   }
 }
 
-double MCP3208::readADC(char channel)
+void MCP3208::readADC(char channel)
 {
   uint32_t oversampleRead = 0;
   uint16_t intResult = 0;
   // enable ADC SPI
-  //Select chip by pulling down CS
-  
+  LOG("Begin Transaction");
+  SPI.beginTransaction(SPISettings(baudrate, BitFirst, SPIMode)); // Set to 800kHz, MSB and MODE1
+  LOG("SPI Begin");
+  SPI.begin();
 
-for (int i=0; i < _oversamplingRate; i++){
-  digitalWrite(_csPin, LOW);
-  
-  // compute 16 bit value for channel and shift into position
-  int tInt = (channel + 24) << 6;
+    //Select chip by pulling down CS
+    digitalWrite(_csPin, LOW);
 
-  // transfer the high byte
-  SPI.transfer(highByte(tInt));
+    // compute 16 bit value for channel and shift into position
+    int tInt = (channel + 24) << 6;
 
-  // transfer the low byte and get high 4 bits
-  byte hiRes = SPI.transfer(lowByte(tInt));
+    // transfer the high byte
+    SPI.transfer(highByte(tInt));
 
-  // get the low 8 bits
-  byte lowRes = SPI.transfer(0);
-  hiRes = hiRes & B00001111;
+    // transfer the low byte and get high 4 bits
+    byte hiRes = SPI.transfer(lowByte(tInt));
 
-  //Combine to make 12 bit value
-  oversampleRead +=  (hiRes << 8 | lowRes);
+    // get the low 8 bits
+    byte lowRes = SPI.transfer(0);
+    hiRes = hiRes & B00001111;
+
+    //Combine to make 12 bit value
+    value[channel] +=  (hiRes << 8 | lowRes);
 
     // disable ADC SPI
-  digitalWrite(_csPin, HIGH);
+    digitalWrite(_csPin, HIGH);
+    LOG("End Transaction");
+    SPI.endTransaction();               //end SPI Transaction
+    LOG("SPI end");
+    SPI.end();
   
-}
- 
-  intResult = oversampleRead / _oversamplingRate ;
+  LOG("Calculate oversampled result");
+  
   AddToMovingAvg(&filteredChannel[channel], intResult);
-  
-  return intResult;
+  LOG("End read channel", channel );
 }
 
-double MCP3208::readADC(){
-  for (int i=0; i<8;i++){
+void MCP3208::readADC() {
+  for (int i = 0; i < 8; i++) {
     readADC(i);
   }
 }
-double MCP3208::getMovingValue(char channel){
-  return GetOutputValue(&filteredChannel[channel]);
+uint16_t MCP3208::getMovingValue(char channel) {
+  return value[channel];
+  //return GetOutputValue(&filteredChannel[channel]);
 }
 
