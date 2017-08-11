@@ -223,24 +223,23 @@ void loop() {
     loop2PreMill = currentMillis;
     peripheralPower(getEnLine());
     
-    LOG ("Input Voltage: ",(getInputVoltage() / 1000.0));
-    //
-    LOG ("Battery Voltage: ", getBatteryVoltage() / 1000.0);
-   
-    //
-    LOG ("INPUT 8", engineADC.getMovingValue(0));
-    SerialUSB.println(engineADC.getMovingValue(0));
-    LOG ("INPUT 7", engineADC.getMovingValue(1));
-    LOG ("INPUT 6", engineADC.getMovingValue(2));
-    LOG ("INPUT 5", engineADC.getMovingValue(3));
-    LOG ("INPUT 4", engineADC.getMovingValue(4));
-    LOG ("INPUT 3", engineADC.getMovingValue(5));
-    LOG ("INPUT 2", engineADC.getMovingValue(6));
-    LOG ("INPUT 1", engineADC.getMovingValue(7));
-    SerialUSB.print("Hallo:");
-    SerialUSB.println(engineADC.getMovingValue(7));
-    //
-    LOG ("Board Temperatur: ", getBoardTemp());
+//    LOG ("Input Voltage: ",(getInputVoltage() / 1000.0));
+//    
+//    LOG ("Battery Voltage: ", getBatteryVoltage() / 1000.0);
+//  
+//    LOG ("INPUT 8", engineADC.getMovingValue(0));
+//    SerialUSB.println(engineADC.getMovingValue(0));
+//    LOG ("INPUT 7", engineADC.getMovingValue(1));
+//    LOG ("INPUT 6", engineADC.getMovingValue(2));
+//    LOG ("INPUT 5", engineADC.getMovingValue(3));
+//    LOG ("INPUT 4", engineADC.getMovingValue(4));
+//    LOG ("INPUT 3", engineADC.getMovingValue(5));
+//    LOG ("INPUT 2", engineADC.getMovingValue(6));
+//    LOG ("INPUT 1", engineADC.getMovingValue(7));
+//    SerialUSB.print("Hallo:");
+//    SerialUSB.println(engineADC.getMovingValue(7));
+//    //
+//    LOG ("Board Temperatur: ", getBoardTemp());
 
    
   }
