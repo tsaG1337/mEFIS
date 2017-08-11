@@ -18,12 +18,12 @@
 const char *ssid = "mEFIS";         //Accesspoint SSID
 
 #define loop1interval 10         //Loop1 Interval
-#define loop2interval 100         //Loop2 Interval
+#define loop2interval 1000         //Loop2 Interval
 
 #define MPU9250_ADDRESS 0x68
 #define DSP_CORE_ADDRESS 0x22
 
-#define RS232_Baudrate 115200        // Baudrate for external RS232 Device
+#define RS232_Baudrate 57600        // Baudrate for external RS232 Device
 
 #define errorLEDPin 0               //Diagnostic LED
 #define RS232_RXPin 2              //RS232 RX Pin
@@ -69,7 +69,7 @@ uint32_t loop2PreMill = 0;        //Last time Loop2 was updated
 
 boolean udpConnected = false;
 char packetBuffer[UDP_TX_PACKET_MAX_SIZE]; //buffer to hold incoming packet,
-char ReplyBuffer[] = "ACK"; // a string to send back
+char ReplyBuffer[200] = "ACK"; // a string to send back
 //Variables for internal GPS only
 
 //location
@@ -141,7 +141,7 @@ void setup()
   delay(500);
   DEBUG_PRINTLN ("");
   DEBUG_PRINTLN("Initializing Ports");
-  pinMode(errorLEDPin, OUTPUT);
+  pinMode(errorLEDPin, INPUT); //TEST
   DEBUG_PRINTLN ("Joining I2C Bus as master");
   Wire.begin();
   DEBUG_PRINTLN ("Scanning I2C Ports for peripherals.");
@@ -174,9 +174,12 @@ void loop() {
     //Serial.println(DSP_CORE_WHOAMI, HEX);
     //DEBUG_PRINT("Time: "); DEBUG_PRINT(gps.time.hour()); DEBUG_PRINT(":"); DEBUG_PRINT(gps.time.minute());  DEBUG_PRINT(" and "); DEBUG_PRINT(gps.time.second()); DEBUG_PRINTLN(" seconds.");
     //digitalWrite(errorLEDPin, !digitalRead(errorLEDPin));
+    UDPSendData();
   }
   while (Serial.available() > 0) {
-    gps.encode(Serial.read());
+    char bytesRead = Serial.read();
+    DEBUG_PRINT (bytesRead);
+    gps.encode(bytesRead);
   }
   yield();
 
@@ -243,32 +246,17 @@ uint8_t readBytefromDSPCore(uint8_t address, uint8_t pointer ) {
   }
 }
 void UDPSendData(void) {
-
-  String GPS_sentence = "$GPRMC,";
-  GPS_sentence += gps.time.value() + ",";
-  GPS_sentence += gps.location.isValid() + ",";
-  GPS_sentence.concat(gps.location.lat());
-  GPS_sentence += ",";
-  GPS_sentence.concat(gps.location.lng());
-  GPS_sentence += ",";
-  GPS_sentence.concat(gps.speed.knots());
-  GPS_sentence += ",";
-  GPS_sentence.concat(gps.course.deg());
-  GPS_sentence += ",";
-  GPS_sentence.concat(gps.date.value());
-  GPS_sentence += ",";
-  GPS_sentence.concat(0000);
-  GPS_sentence += "*";
-  GPS_sentence.concat(12);
-
-  
-  //GPS_sentence += gps.location.lat();
-  //    IPAddress broadcastIp = WiFi.localIP();
-  //    ip[3] = 255;
-  IPAddress broadcastIp = ~WiFi.subnetMask() | WiFi.gatewayIP();
-  // send a reply, to the IP address and port that sent us the packet we received
+  char buffer[200];
+  sprintf(buffer, "$GPRMC,%u,%d,", gps.time.value(), gps.location.isValid());
+  dtostrf(gps.location.lat(), 4, 5, &buffer[strlen(buffer)]);
+  strcat(buffer, ",");
+  dtostrf(gps.location.lng(), 4, 5, &buffer[strlen(buffer)]);
+  strcat(buffer, ",");
+  dtostrf(gps.speed.knots(), 3, 0, &buffer[strlen(buffer)]);
+  strcat(buffer, ",");
+  IPAddress broadcastIp = ~WiFi.subnetMask() | WiFi.gatewayIP();  //Build the Broadcast IP Adress
   UDP.beginPacket(broadcastIp, UDPremotePort);
-  UDP.write(ReplyBuffer);
+  UDP.write(buffer);
   UDP.endPacket();
 
 }
