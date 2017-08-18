@@ -27,7 +27,7 @@ $APENV1,124,179,0,0,0,500,<CR><LF>
 ```
 ```
 $APPOWER, Voltage, backup battery charging status
-$APPOWER,1212,65,1<CR><LF>
+$APPOWER,1212,65,1,<CR><LF>
 ```
 
 Besides this custom messages, the standard minimum recommended GPS information `$GPRMC` is also send. For more information about the specific NMEA sentences, you can also checkout the [LEVIL](http://aviation.levil.com) webpage or the [iCFly manual](https://www.siebert.aero/media/products/Handbuch_ICflyAHRSII.pdf)
