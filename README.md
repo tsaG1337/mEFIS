@@ -1,7 +1,5 @@
 # mEFIS
 
-[![N|Solid](http://bihnairy.de/img/case.1_small.png)](http://bihnairy.de)
-
 >mEFIS is an abbreviation for "my Electronic Flight Instrument System" and is based on open source Software. It has been designed for permanent integration into the ultralight aircraft cockpit.
 
 ## Hardware!
