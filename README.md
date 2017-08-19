@@ -1,5 +1,7 @@
 # mEFIS
 
+[![N|Solid](http://bihnairy.de/img/case.1_small.png)](http://bihnairy.de)
+
 >mEFIS is an abbreviation for "my Electronic Flight Instrument System" and is based on open source Software. It has been designed for permanent integration into the ultralight aircraft cockpit.
 
 ## Hardware!
@@ -14,23 +16,84 @@ The Main Core hosts a Wifi network which can be encrypted (not recommended for A
 The data is send via UDP on the specified Port. You can change the port in the configuration header of the Firmware by changing `UDPremotePort = 1234;` to the desired value.
 The Datastream is broadcasted to every device in the network using the broadcast adress. 
 DHCP is supported, however there seems to be a small hickup in the DHCP library by Espressif / Arduino that stops allocating IP adresses to more than 1 devices. It is therefore recommended to statically allocate a static IP on the tabled device itself.
-###### NMEA
+#### NMEA
 
-The mEFIS sends out standard and custom NMEA sentences. These are also commonly used by iLEVIL or iCFly devices. These include:
+The mEFIS communication is in "NMEA 0183 / pseudo NMEA”. These are also commonly used by iLEVIL or iCFly devices. These include:
+##### Movement and Attitude
+^
 ```
-$RPYL, Roll, Pitch, Yaw (Magnetic heading), Inclination, Yaw Rate (turn coordinator), G force,
-$RPYL,82,69,2021,83,14,1013,0,<CR><LF>
+$RPYL, RRR, PPP, YYYYY, 0, YRR, GG,
 ```
-```
-$APENV1, Airspeed, Altitude, 0,0,0,Vertical Speed
-$APENV1,124,179,0,0,0,500,<CR><LF>
-```
-```
-$APPOWER, Voltage, backup battery charging status
-$APPOWER,1212,65,1,<CR><LF>
-```
+| Value | Description |
+| --- | --- |
+| RRR | Roll [tenths of a degree] |
+| PPP | Pitch [tenths of a degree] |
+| YYYYY | YAW (Magnetic heading) [tenths of a degree] |
+| YRR | YAW Rate (Turning Indicator) [degree] |
+| GG | G-Force |
 
-Besides this custom messages, the standard minimum recommended GPS information `$GPRMC` is also send. For more information about the specific NMEA sentences, you can also checkout the [LEVIL](http://aviation.levil.com) webpage or the [iCFly manual](https://www.siebert.aero/media/products/Handbuch_ICflyAHRSII.pdf)
+##### Barometric Values
+^
+```
+$APENV1, SSS, AAA, 0,0,0,VVVV,
+```
+| Value | Description |
+| --- | --- |
+| SSS | Indicated Airspeed [knots] |
+| AAA | Barometric Altitude [feet] |
+| VVVV | Barometric Vertical Speed [feet/min]|
+
+##### Engine Data
+^
+```
+$APENG1, PP, TTT, LLL,RRR,FFF,VS,
+```
+| Value | Description |
+| --- | --- |
+| PP | Oil Pressure [bar] |
+| TTT | Oil Temperature [°C] |
+| LLL | Left Fuel Gauge [%] |
+| RRR | Right Fuel Gauge [%] |
+| FFF | Fuel Pressure [tenth of bar] |
+
+```
+$APENG2, UUUU,
+```
+| Value | Description |
+| --- | --- |
+| UUUU | Engine RPM |
+
+##### Power
+^
+```
+$APPOWER, VVVV, B,
+```
+| Value | Description |
+| --- | --- |
+| VVVV | Supply Voltage (milliVolt) |
+| B | Battery Charging Status ( 1 / 0 ) |
+
+##### Flight Status
+^
+
+```
+$PFA,FLT,f,s,dddddd,tttt,u,llll,v,aaaaaa*hh
+```
+| Value | Description |
+| --- | --- |
+| FLT | fixed string, identifying flight status message |
+| f | flight status: F = in flight, G = on ground |
+| s | determination source for flight status, I for IAS, G for GPS |
+| dddddd | date of takeoff in format DDMMYY, empty before takeoff |
+| ttt | time of takeoff in format HHMMSS, empty before takeoff |
+| u | reference system of takeoff time is UTC |
+| llllll | time of landing in format HHMMSS, empty before landing |
+| v | reference system of landing time is UTC |
+| aaaaaa | duration airborne in format HHMMSS, empty before takeoff |
+| *hh | Checksum |
+
+
+Besides this custom messages, the standard minimum recommended GPS information `$GPRMC` and `$GPGGA` Global Positioning System Fix Data is also send. For more information about the specific NMEA sentences, you can also checkout the [LEVIL](http://aviation.levil.com) webpage or the [iCFly manual](https://www.siebert.aero/media/products/Handbuch_ICflyAHRSII.pdf)
 
 ###### Compiling and burning firmware
 
@@ -50,5 +113,3 @@ The DSP Core can be flashed using the USB Port with the Arduino IDE default sett
 ## Software!
 
 Since the mEFIS is using widely used avionics standards it can be used with several applications such as the iLevil AHRS Utility, Air Navigation Pro or Sky-Map. However, if you are a "no risk no fun", "I dont need reliability" or a "I need a hassle everytime Im using my avionics" type, you can also use an Adroid device. Since todays pilots are more the "better safe than sorry" type, there are not many Android avionic apps available and you are on your own.
-
-Find more information at the [BihnAiry Page](http://bihnairy.de/).
