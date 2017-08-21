@@ -21,8 +21,9 @@
 #include "HSS.h"
 #include "Arduino.h"
 #include "SPI.h"
+#define DEBUG "HSS"
 #include "debug.h"
-#define DEBUG false
+
 //Define Communication Settings
 #define baudrate 500000
 #define BitFirst MSBFIRST
@@ -54,7 +55,6 @@ void HSS::readSensor() {
   SPI.begin();
   digitalWrite(ChipselectPin, LOW);       //pull Chipselect Pin to Low
 
-
   inByte_1 = SPI.transfer(0x00);  // Read first Byte of Pressure
   //delayMicroseconds(10);
   inByte_2 = SPI.transfer(0x00);  // Read second Byte of Pressure
@@ -62,27 +62,25 @@ void HSS::readSensor() {
   inByte_3 = SPI.transfer(0x00);  // Read first Byte of Temperature
   //delayMicroseconds(10);
   inByte_4 = SPI.transfer(0x00);  // Read second Byte of Temperature
-
+  //LOG("SPI END Transaction");
   SPI.endTransaction();               //end SPI Transaction
+  //LOG("SPI END");
   SPI.end();
 
-  if (DEBUG) {
-    DEBUG_PRINT("Chipselect = " + ChipselectPin);
-    DEBUG_PRINTLN("Byte_1 = "   + inByte_1);
-    DEBUG_PRINT("Byte_2 = "     + inByte_2);
-    DEBUG_PRINT("Byte_3 = "     + inByte_3);
-    DEBUG_PRINT("Byte_4 = "     + inByte_4);
-  }
+    //LOG("Chipselect = ",ChipselectPin);
+    //LOG("Byte_1 = ",inByte_1);
+    //LOG("Byte_2 = ",inByte_2);
+    //LOG("Byte_3 = ",inByte_3);
+    //LOG("Byte_4 = ",inByte_4);
+ 
   digitalWrite(ChipselectPin, HIGH);      //pull Chipselect Pin to High
   pressureDigital = inByte_1 << 8 | inByte_2;
 
-  //pressure = pressureDigital;
   pressure = (((float)(pressureDigital - 1638) * (highPressure - lowPressure)) / 13104) + lowPressure; //transform digital value into real pressure
   inByte_3 = inByte_3 << 3 | inByte_4; //Shift first Temperature byte 3 left
   temperature = ((float)inByte_3 * 200 / 2047) - 50; //Convert Digital value to °C
-  if (DEBUG) {
-    Serial.print("Temp[C]= "); Serial.print(temperature); Serial.println(" ");
-  }
+  //LOG("Temp[C]= ", temperature);
+
 }
 
 
@@ -107,5 +105,3 @@ uint8_t HSS::getSampleRate() {
 void HSS::setSampleRate(uint8_t newSampleRate) {
   sampleRate = newSampleRate;
 }
-
-

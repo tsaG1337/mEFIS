@@ -1,11 +1,15 @@
-#define DEBUGSerial SerialUSB      //SerialUSB can be used as Debugging Port 
+#ifndef _H_LOGGER_H
+#define _H_LOGGER_H
 
-#ifdef DEBUG    
-#define DEBUG_PRINT(x)  char msg[32]; sprintf(msg,"[" + millis() "]" + x); serial.print(msg);
-#define DEBUG_PRINTLN(x)  char msg[32]; sprintf(msg,"[" + millis() "]" + x); serial.println(msg);
- 
+#define xDEBUG_OUTPUT
+#define DEBUGSerial SerialUSB
+
+#if  defined(DEBUG)
+#define LOG(x, ...)  {char msg[128]; sprintf(msg, "%d [LOG: %s] ",millis(),DEBUG); DEBUGSerial.print(msg); DEBUGSerial.print(x); DEBUGSerial.println(__VA_ARGS__);}
+#define DEBUG_PRINTLN(x) {DEBUGSerial.println(x);}
+
 #else
-#define DEBUG_PRINT(x)
+#define LOG(x, ...)
 #define DEBUG_PRINTLN(x)
 #endif
-
+#endif

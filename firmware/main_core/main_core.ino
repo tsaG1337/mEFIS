@@ -18,17 +18,22 @@
 const char *ssid = "mEFIS";         //Accesspoint SSID
 
 #define loop1interval 10         //Loop1 Interval
-#define loop2interval 100         //Loop2 Interval
+#define loop2interval 1000         //Loop2 Interval
 
 #define MPU9250_ADDRESS 0x68
 #define DSP_CORE_ADDRESS 0x22
 
-#define RS232_Baudrate 115200        // Baudrate for external RS232 Device
+#define RS232_Baudrate 57600        // Baudrate for external RS232 Device
 
 #define errorLEDPin 0               //Diagnostic LED
 #define RS232_RXPin 2              //RS232 RX Pin
 #define RS232_TXPin 13              //RS232 TX Pin
 #define AudioOutPin 15              //Audio Pin connected to the Intercom
+
+// UDP variables
+unsigned int UDPlocalPort = 8888;
+unsigned int UDPremotePort = 1234;
+
 //********** Serial Ports **********//
 
 #ifdef DEBUG
@@ -44,6 +49,7 @@ const char *ssid = "mEFIS";         //Accesspoint SSID
 
 TinyGPSPlus gps;                  //Initialize GPS
 MPU9250 imu;                      //initialize onboard IMU 4
+WiFiUDP UDP;
 
 //********* Variables ***********//
 
@@ -61,6 +67,9 @@ int nDevices = 0;
 uint32_t loop1PreMill = 0;        //Last time Loop1 was updated
 uint32_t loop2PreMill = 0;        //Last time Loop2 was updated
 
+boolean udpConnected = false;
+char packetBuffer[UDP_TX_PACKET_MAX_SIZE]; //buffer to hold incoming packet,
+char ReplyBuffer[200] = "ACK"; // a string to send back
 //Variables for internal GPS only
 
 //location
@@ -132,7 +141,7 @@ void setup()
   delay(500);
   DEBUG_PRINTLN ("");
   DEBUG_PRINTLN("Initializing Ports");
-  pinMode(errorLEDPin, OUTPUT);
+  pinMode(errorLEDPin, INPUT); //TEST
   DEBUG_PRINTLN ("Joining I2C Bus as master");
   Wire.begin();
   DEBUG_PRINTLN ("Scanning I2C Ports for peripherals.");
@@ -150,10 +159,9 @@ void loop() {
   //Loop1
   if (currentMillis - loop1PreMill >= loop1interval) {
     loop1PreMill = currentMillis;
-    playTone(500);
+    //playTone(500);
 
     //imu.readAccelData();  // Read the x/y/z adc values
-
     //imu.readGyroData();
     //imu.readMagData();
     //imu.getAres();
@@ -163,17 +171,22 @@ void loop() {
   //Loop2
   if (currentMillis - loop2PreMill >= loop2interval) {
     loop2PreMill = currentMillis;
-    Serial.println(DSP_CORE_WHOAMI, HEX);
+    //Serial.println(DSP_CORE_WHOAMI, HEX);
     //DEBUG_PRINT("Time: "); DEBUG_PRINT(gps.time.hour()); DEBUG_PRINT(":"); DEBUG_PRINT(gps.time.minute());  DEBUG_PRINT(" and "); DEBUG_PRINT(gps.time.second()); DEBUG_PRINTLN(" seconds.");
-    digitalWrite(errorLEDPin, !digitalRead(errorLEDPin));
+    //digitalWrite(errorLEDPin, !digitalRead(errorLEDPin));
+    UDPSendData();
   }
   while (Serial.available() > 0) {
-    gps.encode(Serial.read());
-
+    char bytesRead = Serial.read();
+    DEBUG_PRINT (bytesRead);
+    gps.encode(bytesRead);
   }
   yield();
-}
 
+
+
+
+}
 void scanI2CDevices() {
   for (address = 1; address < 127; address++ )
   {
@@ -210,8 +223,8 @@ void scanI2CDevices() {
 
 
 void syncDSPCore_info() {
-  
-    DSP_CORE_WHOAMI = readBytefromDSPCore(DSP_CORE_ADDRESS, 3 );
+
+  DSP_CORE_WHOAMI = readBytefromDSPCore(DSP_CORE_ADDRESS, 3 );
 
 }
 
@@ -231,5 +244,20 @@ uint8_t readBytefromDSPCore(uint8_t address, uint8_t pointer ) {
       return Wire.read();
     }
   }
+}
+void UDPSendData(void) {
+  char buffer[200];
+  sprintf(buffer, "$GPRMC,%u,%d,", gps.time.value(), gps.location.isValid());
+  dtostrf(gps.location.lat(), 4, 5, &buffer[strlen(buffer)]);
+  strcat(buffer, ",");
+  dtostrf(gps.location.lng(), 4, 5, &buffer[strlen(buffer)]);
+  strcat(buffer, ",");
+  dtostrf(gps.speed.knots(), 3, 0, &buffer[strlen(buffer)]);
+  strcat(buffer, ",");
+  IPAddress broadcastIp = ~WiFi.subnetMask() | WiFi.gatewayIP();  //Build the Broadcast IP Adress
+  UDP.beginPacket(broadcastIp, UDPremotePort);
+  UDP.write(buffer);
+  UDP.endPacket();
+
 }
 
