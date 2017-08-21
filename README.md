@@ -90,8 +90,50 @@ $PFA,FLT,f,s,dddddd,tttt,u,llll,v,aaaaaa*hh
 | aaaaaa | duration airborne in format HHMMSS, empty before takeoff |
 | *hh | Checksum |
 
+Besides this custom messages, the standard minimum recommended GPS information `$GPRMC` and `$GPGGA` Global Positioning System Fix Data is also send. 
 
-Besides this custom messages, the standard minimum recommended GPS information `$GPRMC` and `$GPGGA` Global Positioning System Fix Data is also send. For more information about the specific NMEA sentences, you can also checkout the [LEVIL](http://aviation.levil.com) webpage or the [iCFly manual](https://www.siebert.aero/media/products/Handbuch_ICflyAHRSII.pdf)
+ #### GPS
+```
+$GPRMC,hhmmss.ss,A,llll.ll,a1,yyyyy.yy,a2,x.x1,x.x2,ddmmyy,x.x3,a3*hh
+```
+| Value | Description |
+| --- | --- |
+|hhmmss | UTC of position fix |
+|A    |Data status (V=navigation receiver warning)|
+| llll.ll |Latitude of fix |
+|a1 | N (-orth) or S (-outh)|
+|yyyyy.yy | Longitude of fix|
+| a2 | E (-ast) or W (-est)|
+| x.x1 | (GPS-) Speed over ground in knots |
+| x.x2 |    Track made good in degrees True |
+| ddmmyy | UT date |
+| x.x3 | Magnetic variation degrees (Easterly var. subtracts from true course) |
+|a3   | E (-ast) or W (-est)|
+|hh   | Checksum |
+
+```
+$GPGGA,hhmmss.ss,llll.ll,a1,yyyyy.yy,a2,x,xx,x.x1,x.x2,M1,x.x3,M2,x.x4,xxxx*hh
+```
+
+| Value | Description |
+| --- | --- |
+|hhmmss | UTC of position |
+| llll.ll | Latitude |
+| a1 | N (-orth) or S (-outh) |
+| yyyyy.yy | Longitude |
+| a2 | E (-ast) or W (-est)|
+| x | GPS quality indicator (0=invalid; 1=GPS fix; 2=Diff. GPS fix) |
+| xx    | Number of satellites in use [not those in view] |
+| x.x1    | Horizontal dilution of position |
+| x.x2 | Antenna altitude above/below mean sea level (geoid) |
+| M1 | Meters  (Antenna height unit) |
+| x.x3 | Geoidal separation (Diff. between WGS-84 earth ellipsoid and mean sea level.  -=geoid is below WGS-84 ellipsoid) |
+| M2  | Meters  (Units of geoidal separation) |
+| x.x4 |  = Age in seconds since last update from diff. reference station |
+| xxxx |   = Diff. reference station ID# |
+| hh | Checksum |
+
+For more information about the specific NMEA sentences, you can checkout the GPS-NMEA 0183 reference document at [wikipedia](https://de.wikipedia.org/wiki/NMEA_0183). For mor information visit the [iCFly manual](https://www.siebert.aero/media/products/Handbuch_ICflyAHRSII.pdf) manual.
 
 ###### Compiling and burning firmware
 
