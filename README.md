@@ -94,6 +94,7 @@ Besides this custom messages, the standard minimum recommended GPS information `
 
  #### GPS
 ^
+
 ```
 $GPRMC,hhmmss.ss,A,llll.ll,a1,yyyyy.yy,a2,x.x1,x.x2,ddmmyy,x.x3,a3*hh
 ```
@@ -111,6 +112,7 @@ $GPRMC,hhmmss.ss,A,llll.ll,a1,yyyyy.yy,a2,x.x1,x.x2,ddmmyy,x.x3,a3*hh
 | x.x3 | Magnetic variation degrees (Easterly var. subtracts from true course) |
 |a3   | E (-ast) or W (-est)|
 |hh   | Checksum |
+
 ^
 
 ```
@@ -135,7 +137,7 @@ $GPGGA,hhmmss.ss,llll.ll,a1,yyyyy.yy,a2,x,xx,x.x1,x.x2,M1,x.x3,M2,x.x4,xxxx*hh
 | xxxx |   = Diff. reference station ID# |
 | hh | Checksum |
 
-For more information about the specific NMEA sentences, you can checkout the GPS-NMEA 0183 reference document at [wikipedia](https://de.wikipedia.org/wiki/NMEA_0183). For mor information visit the [iCFly manual](https://www.siebert.aero/media/products/Handbuch_ICflyAHRSII.pdf) manual.
+For more information about the specific NMEA sentences, you can read the GPS-NMEA 0183 reference document at [Wikipedia](https://de.wikipedia.org/wiki/NMEA_0183). Also check out the [iCFly manual](https://www.siebert.aero/media/products/Handbuch_ICflyAHRSII.pdf) 
 
 ###### Compiling and burning firmware
 
