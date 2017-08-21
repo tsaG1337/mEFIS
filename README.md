@@ -93,6 +93,7 @@ $PFA,FLT,f,s,dddddd,tttt,u,llll,v,aaaaaa*hh
 Besides this custom messages, the standard minimum recommended GPS information `$GPRMC` and `$GPGGA` Global Positioning System Fix Data is also send. 
 
  #### GPS
+^
 ```
 $GPRMC,hhmmss.ss,A,llll.ll,a1,yyyyy.yy,a2,x.x1,x.x2,ddmmyy,x.x3,a3*hh
 ```
@@ -110,6 +111,7 @@ $GPRMC,hhmmss.ss,A,llll.ll,a1,yyyyy.yy,a2,x.x1,x.x2,ddmmyy,x.x3,a3*hh
 | x.x3 | Magnetic variation degrees (Easterly var. subtracts from true course) |
 |a3   | E (-ast) or W (-est)|
 |hh   | Checksum |
+^
 
 ```
 $GPGGA,hhmmss.ss,llll.ll,a1,yyyyy.yy,a2,x,xx,x.x1,x.x2,M1,x.x3,M2,x.x4,xxxx*hh
