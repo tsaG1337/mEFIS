@@ -109,35 +109,7 @@ void setup()
   IPAddress myIP = WiFi.softAPIP();
   DEBUG_PRINT("AP IP address: ");
   DEBUG_PRINTLN(myIP);
-  DEBUG_PRINTLN ("Initializing OTA feature");
-  ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH)
-      type = "sketch";
-    else // U_SPIFFS
-      type = "filesystem";
-
-    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-    DEBUG_PRINT("Start updating ");
-    DEBUG_PRINTLN(type);
-  });
-  ArduinoOTA.onEnd([]() {
-    DEBUG_PRINTLN("\nEnd");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    DEBUG_PRINT("Progress: %u%%\r");
-    DEBUG_PRINTLN(progress / (total / 100));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    DEBUG_PRINT("Error[%u]: ");
-    DEBUG_PRINT(error);
-    if (error == OTA_AUTH_ERROR) DEBUG_PRINTLN("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) DEBUG_PRINTLN("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) DEBUG_PRINTLN("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) DEBUG_PRINTLN("Receive Failed");
-    else if (error == OTA_END_ERROR) DEBUG_PRINTLN("End Failed");
-  });
-  ArduinoOTA.begin();
+  
   delay(500);
   DEBUG_PRINTLN ("");
   DEBUG_PRINTLN("Initializing Ports");
@@ -247,8 +219,9 @@ uint8_t readBytefromDSPCore(uint8_t address, uint8_t pointer ) {
 }
 void UDPSendData(void) {
   char buffer[200];
+  
   sprintf(buffer, "$GPRMC,%u,%d,", gps.time.value(), gps.location.isValid());
-  dtostrf(gps.location.lat(), 4, 5, &buffer[strlen(buffer)]);
+  String strBuffer = Builder().append(gps.time.value(), 16, 10)
   strcat(buffer, ",");
   dtostrf(gps.location.lng(), 4, 5, &buffer[strlen(buffer)]);
   strcat(buffer, ",");
