@@ -20,13 +20,13 @@ The mEFIS communication is in "NMEA 0183 / pseudo NMEA”. These are also common
 ##### Movement and Attitude
 ^
 ```
-$RPYL, RRR, PPP, YYYYY, 0, YRR, GG,
+$RPYL, RRRR, PPPP, YYYY, 0, YRR, GG,
 ```
 | Value | Description |
 | --- | --- |
-| RRR | Roll [tenths of a degree] |
-| PPP | Pitch [tenths of a degree] |
-| YYYYY | YAW (Magnetic heading) [tenths of a degree] |
+| RRRR | Roll [tenths of a degree] |
+| PPPP | Pitch [tenths of a degree] |
+| YYYY | YAW (Magnetic heading) [tenths of a degree] |
 | YRR | YAW Rate (Turning Indicator) [degree] |
 | GG | G-Force |
 
