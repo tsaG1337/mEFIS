@@ -375,7 +375,7 @@ void requestEvent()
         bool r1 = gps.date.isValid();
         bool r2 = gps.time.isValid();
         bool r3 = getBatteryChargingStatus();
-        bool r4 = 0;
+        bool r4 = getPowerLevel();
         bool r5 = 0;
         bool r6 = 0;
         bool r7 = 0;
